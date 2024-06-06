@@ -1,8 +1,7 @@
 import streamlit as st
 import snowflake.connector as sc
 import pandas as pd
-from fonctions import Authentification,lister_bases_de_donnees,creer_base_de_donnees,lister_schemas,ajouter_schema
-
+from fonctions import Authentification, creer_warehouse, lister_warehouses, ajouter_schema, lister_schemas, creer_base_de_donnees, lister_bases_de_donnees
 
 def main():
     st.markdown(
@@ -60,9 +59,9 @@ def main():
 
         conn = st.session_state.conn
 
-        col1, col2 = st.columns(2)
-
-        with col1:
+        # Sidebar pour les actions liées aux bases de données
+        with st.sidebar:
+            st.subheader("Gestion des Bases de Données")
             if st.button("Voir les Bases de Données"):
                 bases_de_donnees = lister_bases_de_donnees(conn)
                 if bases_de_donnees:
@@ -70,26 +69,68 @@ def main():
                     for db in bases_de_donnees:
                         st.write(db[1])
 
-            if st.button("Voir les Schémas"):
-                nom_base_de_donnees = st.text_input("Nom de la Base de Données")
-                if nom_base_de_donnees:
-                    schemas = lister_schemas(conn, nom_base_de_donnees)
-                    if schemas:
-                        st.subheader(f"Liste des Schémas dans la base de données '{nom_base_de_donnees}'")
-                        for schema in schemas:
-                            st.write(schema[1])
-
-        with col2:
             if st.button("Créer une Base de Données"):
                 nom_base_de_donnees = st.text_input("Nom de la Base de Données")
                 if nom_base_de_donnees:
                     creer_base_de_donnees(conn, nom_base_de_donnees)
 
-            if st.button("Ajouter un Schéma"):
+            if st.button("Voir les Schémas"):
                 nom_base_de_donnees = st.text_input("Nom de la Base de Données")
-                nom_schema = st.text_input("Nom du Schéma")
-                if nom_base_de_donnees and nom_schema:
-                    ajouter_schema(conn, nom_base_de_donnees, nom_schema)
+                if nom_base_de_donnees:
+                    schemas = lister_schemas(conn, nom_base_de_donnees)
+                    st.write("schemas")
+                    if schemas:
+                        st.subheader(f"Liste des Schémas dans la base de données '{nom_base_de_donnees}'")
+                        for schema in schemas:
+                            st.write(schema[1])
 
+            if st.button("Ajouter un Schéma"):
+                bases_de_donnees = lister_bases_de_donnees(conn)
+                nom_base_de_donnees=st.selectbox("Nom de la Base",bases_de_donnees)
+               # nom_base_de_donnees = st.text_input("Nom de la Base de Données")
+                nom_schema = st.text_input("Nom du Schéma")
+                if st.button("Creer Schéma"):
+                    if nom_base_de_donnees and nom_schema:
+                        ajouter_schema(conn, nom_base_de_donnees, nom_schema)
+
+        # Sidebar pour les actions liées aux warehouses de données
+        with st.sidebar:
+            st.subheader("Gestion des Warehouses de données")
+            if st.button("Voir les Warehouses de données"):
+                try:
+                    cursor = conn.cursor()
+                    cursor.execute("SHOW WAREHOUSES")
+                    warehouses = cursor.fetchall()
+                    columns = [desc[0] for desc in cursor.description]
+                    df_warehouses = pd.DataFrame(warehouses, columns=columns)
+                    st.subheader("Liste des Warehouses")
+                    st.dataframe(df_warehouses)
+                    cursor.close()
+                except Exception as e:
+                    st.error(f"Erreur lors de la récupération des warehouses: {e}")
+            
+            if st.button("Créer un warehouse de données"):
+                st.session_state.show_create_warehouse = True
+
+            if st.session_state.show_create_warehouse:
+                with st.form(key='create_warehouse_form'):
+                    st.subheader("Créer un nouveau warehouse")
+                    warehouse_name = st.text_input("Nom du warehouse")
+                    create_button = st.form_submit_button(label='Créer')
+                    
+                    if create_button:
+                        if warehouse_name:
+                            try:
+                                cursor = conn.cursor()
+                                cursor.execute(f"CREATE WAREHOUSE {warehouse_name}")
+                                st.success(f"DataWarehouse {warehouse_name} créé")
+                                cursor.close()
+                                st.session_state.show_create_warehouse = False
+                            except Exception as e:
+                                st.error(f"Erreur lors de la création du warehouse: {e}")
+                        else:
+                            st.warning("Veuillez entrer un nom pour le warehouse.")
+                                
+                    
 if __name__ == '__main__':
     main()
