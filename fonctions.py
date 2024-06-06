@@ -14,3 +14,43 @@ def Authentification(username, password,account):
         print(e)
         return None
     
+def lister_bases_de_donnees(conn):
+    try:
+        cursor = conn.cursor()
+        cursor.execute("SHOW DATABASES")
+        databases = cursor.fetchall()
+        cursor.close()
+        return databases
+    except Exception as e:
+        st.error(f"Erreur lors de la récupération des bases de données: {e}")
+        return None
+
+def creer_base_de_donnees(conn, nom_base_de_donnees):
+    try:
+        cursor = conn.cursor()
+        cursor.execute(f"CREATE DATABASE IF NOT EXISTS {nom_base_de_donnees}")
+        st.success(f"Base de données '{nom_base_de_donnees}' créée avec succès")
+        cursor.close()
+    except Exception as e:
+        st.error(f"Erreur lors de la création de la base de données: {e}")
+
+def lister_schemas(conn, nom_base_de_donnees):
+    try:
+        cursor = conn.cursor()
+        cursor.execute(f"SHOW SCHEMAS IN DATABASE {nom_base_de_donnees}")
+        schemas = cursor.fetchall()
+        cursor.close()
+        return schemas
+    except Exception as e:
+        st.error(f"Erreur lors de la récupération des schémas: {e}")
+        return None
+
+def ajouter_schema(conn, nom_base_de_donnees, nom_schema):
+    try:
+        cursor = conn.cursor()
+        cursor.execute(f"CREATE SCHEMA IF NOT EXISTS {nom_base_de_donnees}.{nom_schema}")
+        st.success(f"Schéma '{nom_schema}' ajouté avec succès")
+        cursor.close()
+    except Exception as e:
+        st.error(f"Erreur lors de l'ajout du schéma: {e}")
+

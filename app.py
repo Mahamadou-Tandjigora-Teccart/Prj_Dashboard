@@ -1,7 +1,8 @@
 import streamlit as st
 import snowflake.connector as sc
 import pandas as pd
-from fonctions import Authentification
+from fonctions import Authentification,lister_bases_de_donnees,creer_base_de_donnees,lister_schemas,ajouter_schema
+
 
 def main():
     st.markdown(
@@ -55,7 +56,6 @@ def main():
             else:
                 st.error("Connexion au compte échouée")
     else:
-        st.markdown('<div class="button-container"><button class="disconnect-button" onclick="window.location.reload()">Se Déconnecter</button></div>', unsafe_allow_html=True)
         st.title("Bienvenue sur le dashboard")
 
         conn = st.session_state.conn
@@ -63,48 +63,33 @@ def main():
         col1, col2 = st.columns(2)
 
         with col1:
-            if st.button("Voir les Warehouses de données"):
-                try:
-                    cursor = conn.cursor()
-                    cursor.execute("SHOW WAREHOUSES")
-                    warehouses = cursor.fetchall()
-                    columns = [desc[0] for desc in cursor.description]
-                    df_warehouses = pd.DataFrame(warehouses, columns=columns)
-                    st.subheader("Liste des Warehouses")
-                    st.dataframe(df_warehouses)
-                    cursor.close()
-                except Exception as e:
-                    st.error(f"Erreur lors de la récupération des warehouses: {e}")
-        
-        with col2:
-            if st.button("Créer un warehouse de données"):
-                st.session_state.show_create_warehouse = True
+            if st.button("Voir les Bases de Données"):
+                bases_de_donnees = lister_bases_de_donnees(conn)
+                if bases_de_donnees:
+                    st.subheader("Liste des Bases de Données")
+                    for db in bases_de_donnees:
+                        st.write(db[1])
 
-        if st.session_state.show_create_warehouse:
-            with st.form(key='create_warehouse_form'):
-                st.subheader("Créer un nouveau warehouse")
-                warehouse_name = st.text_input("Nom du warehouse")
-                create_button = st.form_submit_button(label='Créer')
-                
-                if create_button:
-                    if warehouse_name:
-                        try:
-                            cursor = conn.cursor()
-                            cursor.execute(f"CREATE WAREHOUSE {warehouse_name}")
-                            st.success(f"DataWarehouse {warehouse_name} créé")
-                            cursor.close()
-                            st.session_state.show_create_warehouse = False
-                        except Exception as e:
-                            st.error(f"Erreur lors de la création du warehouse: {e}")
-                    else:
-                        st.warning("Veuillez entrer un nom pour le warehouse.")
-        
-        # # Déconnexion
-        # if st.button("Se Déconnecter"):
-        #     st.session_state.authenticated = False
-        #     st.session_state.show_create_warehouse = False
-        #     del st.session_state.conn
-        #     st.experimental_rerun()
+            if st.button("Voir les Schémas"):
+                nom_base_de_donnees = st.text_input("Nom de la Base de Données")
+                if nom_base_de_donnees:
+                    schemas = lister_schemas(conn, nom_base_de_donnees)
+                    if schemas:
+                        st.subheader(f"Liste des Schémas dans la base de données '{nom_base_de_donnees}'")
+                        for schema in schemas:
+                            st.write(schema[1])
+
+        with col2:
+            if st.button("Créer une Base de Données"):
+                nom_base_de_donnees = st.text_input("Nom de la Base de Données")
+                if nom_base_de_donnees:
+                    creer_base_de_donnees(conn, nom_base_de_donnees)
+
+            if st.button("Ajouter un Schéma"):
+                nom_base_de_donnees = st.text_input("Nom de la Base de Données")
+                nom_schema = st.text_input("Nom du Schéma")
+                if nom_base_de_donnees and nom_schema:
+                    ajouter_schema(conn, nom_base_de_donnees, nom_schema)
 
 if __name__ == '__main__':
     main()
